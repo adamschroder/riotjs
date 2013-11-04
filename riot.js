@@ -7,30 +7,34 @@
    @license: MIT
 
 */
-(function($, win) {
+(function(win) {
 
    // Precompiled templates (JavaScript functions)
    var FN = {},
-      slice = [].slice;
+      slice = [].slice,
+      self = this,
+      window.R = self;
 
 
    // Render a template with data
-   $.render = function(template, data) {
+   self.render = function(template, data) {
       return (FN[template] = FN[template] || Function("_", "return '" +
-         $.trim(template).replace(/\n/g, "\\n").replace(/\{([^\}]+)\}/g, "'+_.$1+'") + "'")
+         template.replace(/^\s+|\s+$|\n/g, "\\n").replace(/\{([^\}]+)\}/g, "'+_.$1+'") + "'")
       )(data);
    }
 
    // A convenience render method to return a jQuery element
-   $.el = function(template, data) {
-      return $($.render(template, data));
+   self.el = function(template, data) {
+      return self.render(template, data);
    }
 
    // A classic pattern for separating concerns
-   $.observable = function(obj) {
-      var jq = $({});
+   self.observable = function(obj) {
+      var jq = {},
+         evTypes = ['on', 'one', 'emit', 'off'];
 
-      $.each(['on', 'one', 'emit', 'off'], function(i, name) {
+      for (var i=0, len=evTypes.length; i<len; i++) {
+         var name = evTypes[i];
          obj[name] = function(names, fn) {
 
             if (i < 2) {
@@ -49,43 +53,38 @@
 
             return obj;
          }
-      })
+      }
 
       return obj;
    }
 
-   // jQueried window object
-   win = $(win);
-
    // emit window.popstate event consistently on page load, on every browser
    var page_popped;
 
-   win.on("load", function(e) {
+   win.addEventListener("load", function(e) {
       setTimeout(function() {
-         if (!page_popped) win.trigger("popstate")
+         if (!page_popped) win.dispatchEvent("popstate")
       }, 1);
+   });
 
-   }).on("popstate", function(e) {
+   win.addEventListener("popstate", function(e) {
       if (!page_popped) page_popped = true;
-
    })
 
    // Change the browser URL or listen to changes on the URL
-   $.route = function(to) {
+   self.route = function(to) {
 
       // listen
-      if ($.isFunction(to)) {
-         win.on("popstate", function(e, hash) {
+      if (typeof to === 'function') {
+         win.addEventListener("popstate", function(e, hash) {
             to(hash || location.hash)
-         })
+         });
 
       // fire
       } else if (to != location.hash) {
          if (history.pushState) history.pushState("", "", to)
-         win.trigger("popstate", [to]);
+         win.dispatchEvent("popstate", [to]);
       }
-
    }
 
-
-})(jQuery, window)
+})(window)
